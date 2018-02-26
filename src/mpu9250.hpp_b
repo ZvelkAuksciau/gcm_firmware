@@ -1,0 +1,43 @@
+/*
+ * mpu9250.hpp
+ *
+ *  Created on: 2017 lapkr. 24
+ *      Author: matas
+ */
+
+#ifndef GCM_FIRMWARE_SRC_BOARD_MPU9250_HPP_
+#define GCM_FIRMWARE_SRC_BOARD_MPU9250_HPP_
+
+#include <ch.hpp>
+#include <math.hpp>
+
+class MPU9250 {
+
+    void writeRegister(uint8_t regAddr, uint8_t value);
+    uint8_t readRegister(uint8_t regValue);
+
+    typedef struct {
+        int16_t x;
+        int16_t y;
+        int16_t z;
+    }INS_raw_data;
+
+    INS_raw_data accel_raw; //last reading data
+    INS_raw_data gyro_raw; //last reading data
+
+    Vector3f accel; //scaled accel data m/s^2
+    Vector3f gyro; //scaled gyro data deg/s
+
+public:
+    void init();
+    void readData();
+    void update();
+    Vector3f getAccelData() { return accel; }
+    Vector3f getGyroData() { return gyro; }
+
+};
+
+
+
+
+#endif /* GCM_FIRMWARE_SRC_BOARD_MPU9250_HPP_ */

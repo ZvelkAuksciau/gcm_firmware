@@ -5,8 +5,8 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O0 -ggdb -fomit-frame-pointer -falign-functions=16
-  USE_OPT += -nodefaultlibs -lc -lgcc -lm
+  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16
+  USE_OPT += -lc -lgcc -lm
 endif
 
 # C specific options here (added to USE_OPT).
@@ -26,7 +26,7 @@ endif
 
 # Linker extra options here.
 ifeq ($(USE_LDOPT),)
-  USE_LDOPT = 
+  USE_LDOPT =
 endif
 
 # Enable this if you want link time optimizations (LTO)
@@ -90,12 +90,15 @@ PROJECT = gcm_firmware
 
 # Imported source files and paths
 CHIBIOS = modules/ChibiOS
+CHIBIOS_CONTRIB = modules/ChibiOS-Contrib
 UAVCAN = modules/libuavcan
 # Startup files.
 include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f3xx.mk
 # HAL-OSAL files (optional).
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/hal/ports/STM32/STM32F3xx/platform.mk
+include $(CHIBIOS_CONTRIB)/os/hal/hal.mk
+include $(CHIBIOS_CONTRIB)/os/hal/ports/STM32/STM32F3xx/platform.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
@@ -116,6 +119,8 @@ CSRC = $(STARTUPSRC) \
        $(CHIBIOS)/os/various/syscalls.c \
        board/board.c
 
+CSRC += $(shell find src -type f -name '*.c')
+
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CPPSRC += $(CHCPPSRC)
@@ -127,16 +132,16 @@ UDEFS += -DUAVCAN_STM32_CHIBIOS=1 \
 		 -DUAVCAN_CPP_VERSION=UAVCAN_CPP11
 		 
 include $(UAVCAN)/libuavcan/include.mk
-CPPSRC += $(LIBUAVCAN_SRC)
-UINCDIR += $(LIBUAVCAN_INC)
+#CPPSRC += $(LIBUAVCAN_SRC)
+#UINCDIR += $(LIBUAVCAN_INC)
 
 include $(UAVCAN)/libuavcan_drivers/stm32/driver/include.mk
-CPPSRC += $(LIBUAVCAN_STM32_SRC)
-UINCDIR += $(LIBUAVCAN_STM32_INC)
+#CPPSRC += $(LIBUAVCAN_STM32_SRC)
+#UINCDIR += $(LIBUAVCAN_STM32_INC)
 
 # Invoke DSDL compiler and add its default output directory to the include search path
 $(info $(shell python $(LIBUAVCAN_DSDLC) $(UAVCAN_DSDL_DIR)))
-UINCDIR += dsdlc_generated      # This is where the generated headers are stored by default
+#UINCDIR += dsdlc_generated      # This is where the generated headers are stored by default
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
@@ -165,7 +170,8 @@ ASMXSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 INCDIR = src board $(CHIBIOS)/os/license \
          $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
          $(HALINC) $(PLATFORMINC) $(BOARDINC) $(TESTINC) \
-         $(CHIBIOS)/os/various $(CHCPPINC)
+         $(CHIBIOS)/os/various $(CHCPPINC) \
+          $(CHIBIOS_CONTRIB)/os/various
 
 UINCDIR += src src/sys
 

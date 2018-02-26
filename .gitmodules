@@ -4,3 +4,6 @@
 [submodule "modules/libuavcan"]
 	path = modules/libuavcan
 	url = https://github.com/UAVCAN/libuavcan.git
+[submodule "modules/ChibiOS-Contrib"]
+	path = modules/ChibiOS-Contrib
+	url = https://github.com/ChibiOS/ChibiOS-Contrib.git

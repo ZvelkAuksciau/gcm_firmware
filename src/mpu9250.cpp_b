@@ -1,0 +1,135 @@
+#include "mpu9250.hpp"
+#include "ch.hpp"
+#include "hal.h"
+
+#include "math.hpp"
+
+
+//=====================Register definitions=====================================
+#define MPU9250_READ(n) n | 0x80
+
+#define MPU9250_PWR_MGMNT_1             0x6A
+#define MPU9250_PWR_MGMNT_1_RESET       (1 << 7)
+#define MPU9250_PWR_MGMNT_1_SLEEP       (1 << 6)
+#define MPU9250_PWR_MGMNT_1_CYCLE       (1 << 5)
+#define MPU9250_PWR_MGMNT_1_GYRO_SBY    (1 << 4)
+#define MPU9250_PWR_MGMNT_1_PD_PAT      (1 << 3)
+#define MPU9250_PWR_MGMNT_1_CLKSEL_2    (1 << 2)
+#define MPU9250_PWR_MGMNT_1_CLKSEL_1    (1 << 1)
+#define MPU9250_PWR_MGMNT_1_CLKSEL_0    (1)
+
+#define MPU9250_SMPLRT_DIV              0x19
+
+#define MPU9250_CONFIG                  0x1A
+#define MPU9250_CONFIG_FIFO_MODE        (1 << 6)
+
+#define MPU9250_GYRO_CONFIG             0x1B
+#define MPU9250_GYRO_CONFIG_XGYRO_Cten          (1 << 7)
+#define MPU9250_GYRO_CONFIG_YGYRO_Cten          (1 << 6)
+#define MPU9250_GYRO_CONFIG_ZGYRO_Cten          (1 << 5)
+#define MPU9250_GYRO_CONFIG_GYRO_FS_SEL_1       (1 << 4)
+#define MPU9250_GYRO_CONFIG_GYRO_FS_SEL_0       (1 << 3)
+#define MPU9250_GYRO_CONFIG_GYRO_FCHOISE_B_1    (1 << 1)
+#define MPU9250_GYRO_CONFIG_GYRO_FCHOISE_B_0    (1)
+
+#define MPU9250_ACCEL_CONFIG            0x1C
+#define MPU9250_ACCEL_CONFIG_ax_st_en           (1 << 7)
+#define MPU9250_ACCEL_CONFIG_ay_st_en           (1 << 6)
+#define MPU9250_ACCEL_CONFIG_az_st_en           (1 << 5)
+#define MPU9250_ACCEL_CONFIG_FS_SEL_1           (1 << 4)
+#define MPU9250_ACCEL_CONFIG_FS_SEL_0           (1 << 3)
+
+#define MPU9250_ACCEL_CONFIG2           0x1D
+
+#define MPU9250_ACCEL_XOUT_H            0x3B
+//=========================End register definitions=============================
+
+#define MPU9250_GYRO_SCALE (1.0f/32.768f)
+
+#define MPU9250_ACCEL_SCALE (GRAVITY/4096.0f)
+
+
+static const SPIConfig hs_spicfg = {
+  NULL,
+  GPIOA,
+  GPIOA_MPU_CS,
+  SPI_CR1_BR_2 | SPI_CR1_BR_0, //fpclk/64 SPI_CLK 555kHz
+  SPI_CR2_DS_2 | SPI_CR2_DS_1 | SPI_CR2_DS_0
+};
+
+void MPU9250::init() {
+    writeRegister(MPU9250_PWR_MGMNT_1, MPU9250_PWR_MGMNT_1_RESET);
+
+    chibios_rt::BaseThread::sleep(MS2ST(100)); //Wait for IMU to reset
+
+    writeRegister(MPU9250_PWR_MGMNT_1, MPU9250_PWR_MGMNT_1_CLKSEL_0); //Clock PLL if avialable
+    writeRegister(MPU9250_SMPLRT_DIV, 7); //Sample rate 1kHz
+    writeRegister(MPU9250_CONFIG, 0);
+    writeRegister(MPU9250_GYRO_CONFIG, MPU9250_GYRO_CONFIG_GYRO_FS_SEL_1); //Fchoise = 2b11 -> Gyro sample rate = 8kHz BW 3600Hz
+    writeRegister(MPU9250_ACCEL_CONFIG, MPU9250_ACCEL_CONFIG_FS_SEL_1); //Full scale +-8g
+
+}
+
+void MPU9250::writeRegister(uint8_t regAddr, uint8_t value) {
+    spiAcquireBus(&SPID1);
+    spiStart(&SPID1, &hs_spicfg);
+    spiSelect(&SPID1);
+
+    uint8_t tx_data[2];
+    tx_data[0] = regAddr;
+    tx_data[1] = value; //Reset IMU
+
+    spiSend(&SPID1, 2, tx_data);
+
+    spiUnselect(&SPID1);
+    spiReleaseBus(&SPID1);
+}
+
+uint8_t MPU9250::readRegister(uint8_t regValue) {
+    spiAcquireBus(&SPID1);
+    spiStart(&SPID1, &hs_spicfg);
+    spiSelect(&SPID1);
+
+    uint8_t tx_data = MPU9250_READ(regValue);
+    uint8_t rx_data = 0;
+    spiSend(&SPID1, 1, &tx_data);
+    spiReceive(&SPID1, 1, &rx_data);
+
+    spiUnselect(&SPID1);
+    spiReleaseBus(&SPID1);
+    return rx_data;
+}
+
+void MPU9250::readData() {
+    spiAcquireBus(&SPID1);
+    spiStart(&SPID1, &hs_spicfg);
+    spiSelect(&SPID1);
+
+    uint8_t tx_data = MPU9250_READ(MPU9250_ACCEL_XOUT_H);
+    uint8_t rx_data[14];
+    spiSend(&SPID1, 1, &tx_data);
+    spiReceive(&SPID1, 14, rx_data);
+
+    spiUnselect(&SPID1);
+    spiReleaseBus(&SPID1);
+
+    accel_raw.x = (int16_t)(rx_data[0] << 8 | rx_data[1]);
+    accel_raw.y = (int16_t)(rx_data[2] << 8 | rx_data[3]);
+    accel_raw.z = (int16_t)(rx_data[4] << 8 | rx_data[5]);
+
+    //TODO: add tempeture reading
+
+    //TODO: apply sensor rotations
+
+    gyro_raw.x = (int16_t)(rx_data[8] << 8 | rx_data[9]);
+    gyro_raw.y = (int16_t)(rx_data[10] << 8 | rx_data[11]);
+    gyro_raw.z = (int16_t)(rx_data[12] << 8 | rx_data[13]);
+
+    accel.x = accel_raw.x * MPU9250_ACCEL_SCALE;
+    accel.y = accel_raw.y * MPU9250_ACCEL_SCALE;
+    accel.z = accel_raw.z * MPU9250_ACCEL_SCALE;
+
+    gyro.x = gyro_raw.x * MPU9250_GYRO_SCALE;
+    gyro.y = gyro_raw.y * MPU9250_GYRO_SCALE;
+    gyro.z = gyro_raw.z * MPU9250_GYRO_SCALE;
+}

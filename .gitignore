@@ -1,3 +1,6 @@
-.dep
-build
-
+build/*
+.dep/*
+.cproject
+.project
+.settings/*
+dsdlc_generated/*
