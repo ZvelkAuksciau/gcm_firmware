@@ -31,29 +31,44 @@
 /* C libraries: */
 #include <string.h>
 
-#define MPU6050_I2C_ADDR_A0_LOW   0x68
-#define MPU6050_I2C_ADDR_A0_HIGH  0x69
+//=====================Register definitions=====================================
+#define MPU9250_READ(n) n | 0x80
 
-/* MPU6050 useful registers */
-#define MPU6050_SMPLRT_DIV        0x19
-#define MPU6050_CONFIG            0x1A
-#define MPU6050_GYRO_CONFIG       0x1B
-#define MPU6050_ACCEL_CONFIG      0x1C
-#define MPU6050_ACCEL_XOUT_H      0x3B
-#define MPU6050_ACCEL_XOUT_L      0x3C
-#define MPU6050_ACCEL_YOUT_H      0x3D
-#define MPU6050_ACCEL_YOUT_L      0x3E
-#define MPU6050_ACCEL_ZOUT_H      0x3F
-#define MPU6050_ACCEL_ZOUT_L      0x40
-#define MPU6050_TEMP_OUT_H        0x41
-#define MPU6050_TEMP_OUT_L        0x42
-#define MPU6050_GYRO_XOUT_H       0x43
-#define MPU6050_GYRO_XOUT_L       0x44
-#define MPU6050_GYRO_YOUT_H       0x45
-#define MPU6050_GYRO_YOUT_L       0x46
-#define MPU6050_GYRO_ZOUT_H       0x47
-#define MPU6050_GYRO_ZOUT_L       0x48
-#define MPU6050_PWR_MGMT_1        0x6B
+#define MPU9250_PWR_MGMNT_1             0x6A
+#define MPU9250_PWR_MGMNT_1_RESET       (1 << 7)
+#define MPU9250_PWR_MGMNT_1_SLEEP       (1 << 6)
+#define MPU9250_PWR_MGMNT_1_CYCLE       (1 << 5)
+#define MPU9250_PWR_MGMNT_1_GYRO_SBY    (1 << 4)
+#define MPU9250_PWR_MGMNT_1_PD_PAT      (1 << 3)
+#define MPU9250_PWR_MGMNT_1_CLKSEL_2    (1 << 2)
+#define MPU9250_PWR_MGMNT_1_CLKSEL_1    (1 << 1)
+#define MPU9250_PWR_MGMNT_1_CLKSEL_0    (1)
+
+#define MPU9250_SMPLRT_DIV              0x19
+
+#define MPU9250_CONFIG                  0x1A
+#define MPU9250_CONFIG_FIFO_MODE        (1 << 6)
+
+#define MPU9250_GYRO_CONFIG             0x1B
+#define MPU9250_GYRO_CONFIG_XGYRO_Cten          (1 << 7)
+#define MPU9250_GYRO_CONFIG_YGYRO_Cten          (1 << 6)
+#define MPU9250_GYRO_CONFIG_ZGYRO_Cten          (1 << 5)
+#define MPU9250_GYRO_CONFIG_GYRO_FS_SEL_1       (1 << 4)
+#define MPU9250_GYRO_CONFIG_GYRO_FS_SEL_0       (1 << 3)
+#define MPU9250_GYRO_CONFIG_GYRO_FCHOISE_B_1    (1 << 1)
+#define MPU9250_GYRO_CONFIG_GYRO_FCHOISE_B_0    (1)
+
+#define MPU9250_ACCEL_CONFIG            0x1C
+#define MPU9250_ACCEL_CONFIG_ax_st_en           (1 << 7)
+#define MPU9250_ACCEL_CONFIG_ay_st_en           (1 << 6)
+#define MPU9250_ACCEL_CONFIG_az_st_en           (1 << 5)
+#define MPU9250_ACCEL_CONFIG_FS_SEL_1           (1 << 4)
+#define MPU9250_ACCEL_CONFIG_FS_SEL_0           (1 << 3)
+
+#define MPU9250_ACCEL_CONFIG2           0x1D
+
+#define MPU9250_ACCEL_XOUT_H            0x3B
+//=========================End register definitions=============================
 
 /* Sensor scales */
 //#define MPU6050_GYRO_SCALE        (1.0f / 131.0f) //  250 deg/s
@@ -105,6 +120,14 @@ uint8_t g_sensorSettings[3] = {
   IMU2_AXIS_DIR_POS  /* Yaw   (Z) */
 };
 
+static const SPIConfig hs_spicfg = {
+  NULL,
+  GPIOA,
+  GPIOA_MPU_CS,
+  SPI_CR1_BR_2 | SPI_CR1_BR_0, //fpclk/64 SPI_CLK 555kHz
+  SPI_CR2_DS_2 | SPI_CR2_DS_1 | SPI_CR2_DS_0
+};
+
 /* IMU data structure. */
 IMUStruct g_IMU1;
 
@@ -132,12 +155,12 @@ void imuStructureInit(PIMUStruct pIMU, uint8_t fAddrHigh) {
   pIMU->qIMU[0] = 1.0f;
 
   if (fAddrHigh) {
-    pIMU->addr = MPU6050_I2C_ADDR_A0_HIGH;
+    pIMU->addr = 0x01;//MPU6050_I2C_ADDR_A0_HIGH;
     for (i = 0; i < 3; i++) {
       pIMU->axes_conf[i] = g_sensorSettings[i] >> 4;
     }
   } else {
-    pIMU->addr = MPU6050_I2C_ADDR_A0_LOW;
+    pIMU->addr = 0x00;//MPU6050_I2C_ADDR_A0_LOW;
     for (i = 0; i < 3; i++) {
       pIMU->axes_conf[i] = g_sensorSettings[i] & IMU1_CONF_MASK;
     }
@@ -207,6 +230,36 @@ uint8_t imuCalibrate(PIMUStruct pIMU, uint8_t fCalibrateAcc) {
   return 1;
 }
 
+void writeRegister(uint8_t regAddr, uint8_t value) {
+    spiAcquireBus(&SPID1);
+    spiStart(&SPID1, &hs_spicfg);
+    spiSelect(&SPID1);
+
+    uint8_t tx_data[2];
+    tx_data[0] = regAddr;
+    tx_data[1] = value; //Reset IMU
+
+    spiSend(&SPID1, 2, tx_data);
+
+    spiUnselect(&SPID1);
+    spiReleaseBus(&SPID1);
+}
+
+uint8_t readRegister(uint8_t regValue) {
+    spiAcquireBus(&SPID1);
+    spiStart(&SPID1, &hs_spicfg);
+    spiSelect(&SPID1);
+
+    uint8_t tx_data = MPU9250_READ(regValue);
+    uint8_t rx_data = 0;
+    spiSend(&SPID1, 1, &tx_data);
+    spiReceive(&SPID1, 1, &rx_data);
+
+    spiUnselect(&SPID1);
+    spiReleaseBus(&SPID1);
+    return rx_data;
+}
+
 /**
  * @brief  Initialization function for the MPU6050 sensor.
  * @param  addr - I2C address of MPU6050 chip.
@@ -214,72 +267,16 @@ uint8_t imuCalibrate(PIMUStruct pIMU, uint8_t fCalibrateAcc) {
  *         0 - if initialization failed.
  */
 uint8_t mpu6050Init(uint8_t addr) {
-  msg_t status = I2C_NO_ERROR;
+    writeRegister(MPU9250_PWR_MGMNT_1, MPU9250_PWR_MGMNT_1_RESET);
 
-  /* Reset all MPU6050 registers to their default values */
-  mpu6050TXData[0] = MPU6050_PWR_MGMT_1;  // Start register address;
-  mpu6050TXData[1] = 0b11000000;          // Register value;
+    chThdSleepMilliseconds(100); //Wait for IMU to reset
 
-  i2cAcquireBus(&I2CD1);
-
-  status = i2cMasterTransmitTimeout(&I2CD1, addr, mpu6050TXData, 2,
-    NULL, 0, MS2ST(MPU6050_WRITE_TIMEOUT_MS));
-
-  if (status != I2C_NO_ERROR) {
-    i2cReleaseBus(&I2CD1);
-    g_i2cErrorInfo.last_i2c_error = i2cGetErrors(&I2CD1);
-    if (g_i2cErrorInfo.last_i2c_error) {
-      g_i2cErrorInfo.i2c_error_counter++;
-      debugLog("E:mpu6050i-tx1");
-    }
-    return 0;
-  }
-
-  /* Wait 100 ms for the MPU6050 to reset */
-  chThdSleepMilliseconds(100);
-
-  /* Clear the SLEEP flag, set the clock and start measuring. */
-  mpu6050TXData[0] = MPU6050_PWR_MGMT_1;  // Start register address;
-  mpu6050TXData[1] = 0b00000011;          // Register value CLKSEL = PLL_Z;
-
-  status = i2cMasterTransmitTimeout(&I2CD1, addr, mpu6050TXData, 2,
-    NULL, 0, MS2ST(MPU6050_WRITE_TIMEOUT_MS));
-
-  if (status != I2C_NO_ERROR) {
-    i2cReleaseBus(&I2CD1);
-    g_i2cErrorInfo.last_i2c_error = i2cGetErrors(&I2CD1);
-    if (g_i2cErrorInfo.last_i2c_error) {
-      g_i2cErrorInfo.i2c_error_counter++;
-      debugLog("E:mpu6050i-rst");
-    }
-    return 0;
-  }
-
-  /* Configure the MPU6050 sensor        */
-  /* NOTE:                               */
-  /* - SLEEP flag must be cleared before */
-  /*   configuring the sensor.           */
-  mpu6050TXData[0] = MPU6050_SMPLRT_DIV;  // Start register address;
-  mpu6050TXData[1] = 11;                  // SMPLRT_DIV register value (8000 / (11 + 1) = 666 Hz);
-  mpu6050TXData[2] = 0b00000000;          // CONFIG register value DLPF_CFG = 0 (256-260 Hz);
-  mpu6050TXData[3] = 0b00010000;          // GYRO_CONFIG register value FS_SEL = +-1000 deg/s;
-  mpu6050TXData[4] = 0b00010000;          // ACCEL_CONFIG register value AFS_SEL = +-8G;
-
-  status = i2cMasterTransmitTimeout(&I2CD1, addr, mpu6050TXData, 5,
-    NULL, 0, MS2ST(MPU6050_WRITE_TIMEOUT_MS));
-
-  i2cReleaseBus(&I2CD1);
-
-  if (status != I2C_NO_ERROR) {
-    g_i2cErrorInfo.last_i2c_error = i2cGetErrors(&I2CD1);
-    if (g_i2cErrorInfo.last_i2c_error) {
-      g_i2cErrorInfo.i2c_error_counter++;
-      debugLog("E:mpu6050i-cfg");
-    }
-    return 0;
-  }
-
-  return 1;
+    writeRegister(MPU9250_PWR_MGMNT_1, MPU9250_PWR_MGMNT_1_CLKSEL_0); //Clock PLL if avialable
+    writeRegister(MPU9250_SMPLRT_DIV, 7); //Sample rate 1kHz
+    writeRegister(MPU9250_CONFIG, 0);
+    writeRegister(MPU9250_GYRO_CONFIG, MPU9250_GYRO_CONFIG_GYRO_FS_SEL_1); //Fchoise = 2b11 -> Gyro sample rate = 8kHz BW 3600Hz
+    writeRegister(MPU9250_ACCEL_CONFIG, MPU9250_ACCEL_CONFIG_FS_SEL_1); //Full scale +-8g
+    return 1;
 }
 
 /**
@@ -293,21 +290,17 @@ uint8_t mpu6050GetNewData(PIMUStruct pIMU) {
   uint8_t id;
   int16_t mpu6050Data[6];
 
-  /* Set the start register address for bulk data transfer. */
-  mpu6050TXData[0] = MPU6050_ACCEL_XOUT_H;
-  i2cAcquireBus(&I2CD1);
-  status = i2cMasterTransmitTimeout(&I2CD1, pIMU->addr, mpu6050TXData, 1,
-    mpu6050RXData, 14, MS2ST(MPU6050_READ_TIMEOUT_MS));
-  i2cReleaseBus(&I2CD1);
+  spiAcquireBus(&SPID1);
+   spiStart(&SPID1, &hs_spicfg);
+   spiSelect(&SPID1);
 
-  if (status != I2C_NO_ERROR) {
-    g_i2cErrorInfo.last_i2c_error = i2cGetErrors(&I2CD1);
-    if (g_i2cErrorInfo.last_i2c_error) {
-      g_i2cErrorInfo.i2c_error_counter++;
-      debugLog("E:mpu6050gnd");
-    }
-    return 0;
-  }
+   uint8_t tx_data = MPU9250_READ(MPU9250_ACCEL_XOUT_H);
+   uint8_t rx_data[14];
+   spiSend(&SPID1, 1, &tx_data);
+   spiReceive(&SPID1, 14, mpu6050RXData);
+
+   spiUnselect(&SPID1);
+   spiReleaseBus(&SPID1);
 
   mpu6050Data[0] = (int16_t)((mpu6050RXData[ 0]<<8) | mpu6050RXData[ 1]); /* Accel X */
   mpu6050Data[1] = (int16_t)((mpu6050RXData[ 2]<<8) | mpu6050RXData[ 3]); /* Accel Y */
