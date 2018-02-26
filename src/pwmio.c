@@ -143,6 +143,8 @@ MixedInputStruct g_mixedInput[3] = {
  */
 int16_t g_inputValues[5] = {0};
 
+PWMCommandStruct g_pwmCmd[3] = {0};
+
 /**
  * Local PWM output values for three phase BLDC motor driver.
  */
@@ -153,6 +155,7 @@ static uint32_t pwm3PhaseDrv[3];
  * @return none.
  */
 static void pwmOutputDisableRoll(void) {
+    g_pwmCmd[1].power = 0;
 }
 
 /**
@@ -160,6 +163,7 @@ static void pwmOutputDisableRoll(void) {
  * @return none.
  */
 static void pwmOutputDisablePitch(void) {
+    g_pwmCmd[0].power = 0;
 }
 
 /**
@@ -167,6 +171,7 @@ static void pwmOutputDisablePitch(void) {
  * @return none.
  */
 static void pwmOutputDisableYaw(void) {
+    g_pwmCmd[3].power = 0;
 }
 
 /**
@@ -240,27 +245,24 @@ void pwmOutputUpdate(const uint8_t channel_id, float cmd) {
     if ((g_pwmOutput[PWM_OUT_PITCH].dt_cmd_id & PWM_OUT_CMD_ID_MASK) == PWM_OUT_CMD_DISABLED) {
       pwmOutputDisablePitch();
     } else {
-      pwmOutputCmdTo3PhasePWM(cmd, g_pwmOutput[PWM_OUT_PITCH].power,
-        g_pwmOutput[PWM_OUT_PITCH].flags & PWM_OUT_THI_FLAG);
-      pwmOutputUpdatePitch();
+      g_pwmCmd[PWM_OUT_PITCH].power = g_pwmOutput[PWM_OUT_PITCH].power;
+      g_pwmCmd[PWM_OUT_PITCH].phase = cmd;
     }
     break;
   case PWM_OUT_ROLL:
     if ((g_pwmOutput[PWM_OUT_ROLL].dt_cmd_id & PWM_OUT_CMD_ID_MASK) == PWM_OUT_CMD_DISABLED) {
       pwmOutputDisableRoll();
     } else {
-      pwmOutputCmdTo3PhasePWM(cmd, g_pwmOutput[PWM_OUT_ROLL].power,
-        g_pwmOutput[PWM_OUT_ROLL].flags & PWM_OUT_THI_FLAG);
-      pwmOutputUpdateRoll();
+        g_pwmCmd[PWM_OUT_ROLL].power = g_pwmOutput[PWM_OUT_ROLL].power;
+        g_pwmCmd[PWM_OUT_ROLL].phase = cmd;
     }
     break;
   case PWM_OUT_YAW:
     if ((g_pwmOutput[PWM_OUT_YAW].dt_cmd_id & PWM_OUT_CMD_ID_MASK) == PWM_OUT_CMD_DISABLED) {
       pwmOutputDisableYaw();
     } else {
-      pwmOutputCmdTo3PhasePWM(cmd, g_pwmOutput[PWM_OUT_YAW].power,
-        g_pwmOutput[PWM_OUT_YAW].flags & PWM_OUT_THI_FLAG);
-      pwmOutputUpdateYaw();
+        g_pwmCmd[PWM_OUT_YAW].power = g_pwmOutput[PWM_OUT_YAW].power;
+        g_pwmCmd[PWM_OUT_YAW].phase = cmd;
     }
     break;
   default:;

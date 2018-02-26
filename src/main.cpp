@@ -24,6 +24,7 @@
 #include "misc.h"
 #include "telemetry.h"
 #include "eeprom.h"
+#include "node.hpp"
 
 /* Telemetry operation time out in milliseconds. */
 #define TELEMETRY_SLEEP_MS      20
@@ -226,6 +227,8 @@ static const CRCConfig crc32_config = {
  * @brief   Application entry point.
  * @details
  */
+
+static Node::uavcanNodeThread node;
 int main(void) {
     thread_t *tpBlinker  = NULL;
     thread_t *tpPoller   = NULL;
@@ -302,6 +305,8 @@ int main(void) {
   /* Creates the blinker thread. */
   tpBlinker = chThdCreateStatic(waBlinkerThread, sizeof(waBlinkerThread),
     LOWPRIO, (tfunc_t)BlinkerThread, NULL);
+
+  node.start(NORMALPRIO);
 
   /* Normal main() thread activity. */
   while (g_runMain) {

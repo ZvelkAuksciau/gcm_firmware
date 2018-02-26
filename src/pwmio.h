@@ -78,9 +78,15 @@ typedef struct tagMixedInputStruct {
   uint8_t channel_id;
 } __attribute__((packed)) MixedInputStruct, *PMixedInputStruct;
 
+typedef struct tagPMWCommandStuct {
+    uint8_t power;
+    float phase;
+} PWMCommandStruct;
+
 extern PWMOutputStruct g_pwmOutput[3];
 extern MixedInputStruct g_mixedInput[3];
 extern int16_t g_inputValues[5];
+extern PWMCommandStruct g_pwmCmd[3];
 
 #ifdef __cplusplus
 extern "C" {

@@ -53,7 +53,7 @@ endif
 #
 # Build global options
 ##############################################################################
-USE_CPPOPT += -std=c++14 -fno-rtti -fno-exceptions -fno-threadsafe-statics
+USE_CPPOPT += -std=c++11 -fno-rtti -fno-exceptions -fno-threadsafe-statics
 USE_COPT += -std=c99
 
 ##############################################################################
@@ -63,7 +63,7 @@ USE_COPT += -std=c99
 # Stack size to be allocated to the Cortex-M process stack. This stack is
 # the stack used by the main() thread.
 ifeq ($(USE_PROCESS_STACKSIZE),)
-  USE_PROCESS_STACKSIZE = 0x400
+  USE_PROCESS_STACKSIZE = 0x600
 endif
 
 # Stack size to the allocated to the Cortex-M main/exceptions stack. This
@@ -127,21 +127,22 @@ CPPSRC += $(CHCPPSRC)
 CPPSRC += $(shell find src -type f -name '*.cpp')
 		 
 UDEFS += -DUAVCAN_STM32_CHIBIOS=1 \
-		 -DUAVCAN_STM32_TIMER_NUMBER=6 \
+		 -DUAVCAN_STM32_TIMER_NUMBER=3 \
 		 -DUAVCAN_STM32_NUM_IFACES=1 \
 		 -DUAVCAN_CPP_VERSION=UAVCAN_CPP11
 		 
 include $(UAVCAN)/libuavcan/include.mk
-#CPPSRC += $(LIBUAVCAN_SRC)
-#UINCDIR += $(LIBUAVCAN_INC)
+CPPSRC += $(LIBUAVCAN_SRC)
+UINCDIR += $(LIBUAVCAN_INC)
 
 include $(UAVCAN)/libuavcan_drivers/stm32/driver/include.mk
-#CPPSRC += $(LIBUAVCAN_STM32_SRC)
-#UINCDIR += $(LIBUAVCAN_STM32_INC)
+CPPSRC += $(LIBUAVCAN_STM32_SRC)
+UINCDIR += $(LIBUAVCAN_STM32_INC)
 
 # Invoke DSDL compiler and add its default output directory to the include search path
 $(info $(shell python $(LIBUAVCAN_DSDLC) $(UAVCAN_DSDL_DIR)))
-#UINCDIR += dsdlc_generated      # This is where the generated headers are stored by default
+$(info $(shell python $(LIBUAVCAN_DSDLC) modules/kmti_dsdl/kmti))
+UINCDIR += dsdlc_generated      # This is where the generated headers are stored by default
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler

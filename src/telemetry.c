@@ -359,9 +359,9 @@ static void telemetryReadSerialDataResync(uint8_t len) {
  * @return none.
  */
 void telemetryReadSerialData(void) {
-  uint8_t rdBuffer[30];
+  uint8_t rdBuffer[100];
   uint8_t *readBuffer = rdBuffer;
-  size_t bytesAvailable = chnRead(g_chnp, readBuffer, 30);
+  size_t bytesAvailable = chnReadTimeout(g_chnp, readBuffer, 100, MS2ST(5));
 
   while (bytesAvailable) {
     if (bytesAvailable >= bytesRequired) {
@@ -369,7 +369,7 @@ void telemetryReadSerialData(void) {
         palTogglePad(GPIOB, GPIOB_LED_PWR);
         memcpy(msgPos, readBuffer, bytesRequired);
         readBuffer += bytesRequired;
-        msgPos += bytesAvailable;
+        msgPos += bytesRequired;
         bytesAvailable -= bytesRequired;
         bytesRequired = 0;
       }
@@ -394,12 +394,14 @@ void telemetryReadSerialData(void) {
       /* Zero-out unused data for crc32 calculation. */
       memset(&msg.data[msg.size - TELEMETRY_MSG_SVC_SIZE], 0,
         TELEMETRY_BUFFER_SIZE - msg.size + TELEMETRY_MSG_SVC_SIZE);
-
-      if (msg.crc == telemetryGetCRC32Checksum(&msg)) {
+      uint32_t check_sum = telemetryGetCRC32Checksum(&msg);
+      uint32_t check = msg.crc;
+      (void) check;
+      if (msg.crc == check_sum) {
         telemetryProcessCommand(&msg);
       } else {
         uint8_t i;
-        for (i =0; i < 50; i++) {
+        for (i =0; i < 4; i++) {
           palTogglePad(GPIOB, GPIOB_LED_PWR);
           chThdSleepMilliseconds(US2ST(10500));
         }

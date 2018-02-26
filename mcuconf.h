@@ -58,7 +58,7 @@
 #define STM32_USART3SW                      STM32_USART3SW_PCLK
 #define STM32_UART4SW                       STM32_UART4SW_PCLK
 #define STM32_UART5SW                       STM32_UART5SW_PCLK
-#define STM32_I2C1SW                        STM32_I2C1SW_HSI
+#define STM32_I2C1SW                        STM32_I2C1SW_SYSCLK
 #define STM32_I2C2SW                        STM32_I2C2SW_SYSCLK
 #define STM32_TIM1SW                        STM32_TIM1SW_PCLK2
 #define STM32_TIM8SW                        STM32_TIM8SW_PCLK2

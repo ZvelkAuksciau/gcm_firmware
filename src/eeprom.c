@@ -34,15 +34,15 @@
 #include <string.h>
 
 /* Address of the 24C02 EEPROM chip: 1 0 1 0 1 1 1; */
-#define EEPROM_24C02_ADDR       0x57
+#define EEPROM_24C02_ADDR       0x50
 /* Size of the chip is 256 bytes (2048 bits or 2kbit); */
 #define EEPROM_24C02_SIZE       0x0100
 /* 8 Bytes per page; */
 #define EEPROM_24C02_PAGE_SIZE  0x08
 /* I2C read transaction time-out in milliseconds. */
-#define EEPROM_READ_TIMEOUT_MS  0x05
+#define EEPROM_READ_TIMEOUT_MS  50
 /* I2C write transaction time-out in milliseconds. */
-#define EEPROM_WRITE_TIMEOUT_MS 0x01
+#define EEPROM_WRITE_TIMEOUT_MS 50
 /* The beginning of the EEPROM. */
 #define EEPROM_START_ADDR       0x00
 

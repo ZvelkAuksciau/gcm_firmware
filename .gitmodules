@@ -7,3 +7,6 @@
 [submodule "modules/ChibiOS-Contrib"]
 	path = modules/ChibiOS-Contrib
 	url = https://github.com/ChibiOS/ChibiOS-Contrib.git
+[submodule "modules/kmti_dsdl"]
+	path = modules/kmti_dsdl
+	url = https://github.com/MRazgunas/kmti_dsdl.git
