@@ -48,13 +48,10 @@
 #define MOTOR_STEP_LIMIT_MIN      -MOTOR_STEP_LIMIT_MAX
 
 #define ACCEL_TAU                 0.1f
-#define INPUT_SIGNAL_ALPHA        300.0f
+#define INPUT_SIGNAL_ALPHA        100.0f
 #define MODE_FOLLOW_DEAD_BAND     M_PI / 36.0f
 
-/* Input modes: */
-#define INPUT_MODE_ANGLE          0x00
-#define INPUT_MODE_SPEED          0x01
-#define INPUT_MODE_FOLLOW         0x02
+
 
 /* PID controller structure. */
 typedef struct tagPIDStruct {
@@ -71,6 +68,8 @@ typedef struct tagPIDStruct {
  */
 /* Mechanical offset of the motors. */
 float g_motorOffset[3] = {0.0f, 0.0f, 0.0f};
+
+CanInputStruct g_canInput[3] = { 0 };
 
 /**
  * Default PID settings.
@@ -310,7 +309,7 @@ void cameraRotationUpdate(void) {
   for (i = 0; i < 3; i++) {
     speedLimit = ((float)g_modeSettings[i].speed)*DEG2RAD;
 
-    if (g_modeSettings[i].mode_id & INPUT_MODE_FOLLOW) {
+    if (g_canInput[i].mode & INPUT_MODE_BODYFRAME) {
       /* Calculate offset of the gimbal: */
       coef = g_modeSettings[i].offset*DEG2RAD - g_motorOffset[i];
       if (coef > MODE_FOLLOW_DEAD_BAND) {
@@ -324,31 +323,19 @@ void cameraRotationUpdate(void) {
       } else {
         coef = 0.0f;
       }
-    } else if (g_mixedInput[i].channel_id == INPUT_CHANNEL_DISABLED) {
+    } else if (g_canInput[i].mode == INPUT_MODE_NONE) { //Unknow mode
       camRot[i] = 0.0f;
       continue;
     } else {
-      /* Calculate input scaling coefficient: */
-      if (g_mixedInput[i].max_val == g_mixedInput[i].min_val) {
-        /* Avoid divisions by zero. */
-        coef = 0.0f;
-      } else {
-        coef = ((float)(g_inputValues[g_mixedInput[i].channel_id] - g_mixedInput[i].mid_val)) /
-               ((float)(g_mixedInput[i].max_val - g_mixedInput[i].min_val));
-      }
+      coef = g_canInput[i].cmd;
 
-      if (g_modeSettings[i].mode_id & INPUT_MODE_SPEED) {
-        /* Calculate speed from RC input data: */
-        coef *= 2.0f*speedLimit;
+      if (g_canInput[i].mode & INPUT_MODE_SPEED) {
+        coef = constrain(coef, -speedLimit, speedLimit);
         camRotSpeedPrev[i] += (coef - camRotSpeedPrev[i]) / INPUT_SIGNAL_ALPHA;
         coef = camRotSpeedPrev[i];
       } else { /* INPUT_MODE_ANGLE */
         /* Calculate angle from input data: */
-        coef *= (g_modeSettings[i].max_angle - g_modeSettings[i].min_angle);
-        coef += (g_modeSettings[i].max_angle + g_modeSettings[i].min_angle) / 2;
-        coef = constrain(coef, (float)g_modeSettings[i].min_angle, (float)g_modeSettings[i].max_angle);
-        coef *= DEG2RAD;
-
+        coef = constrain(coef, (float)g_modeSettings[i].min_angle*DEG2RAD, (float)g_modeSettings[i].max_angle*DEG2RAD);
         /* Convert angle difference to speed: */
         coef = (coef - camAtti[i]) / INPUT_SIGNAL_ALPHA / FIXED_DT_STEP;
       }

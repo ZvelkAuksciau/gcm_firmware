@@ -245,7 +245,10 @@ void pwmOutputUpdate(const uint8_t channel_id, float cmd) {
     if ((g_pwmOutput[PWM_OUT_PITCH].dt_cmd_id & PWM_OUT_CMD_ID_MASK) == PWM_OUT_CMD_DISABLED) {
       pwmOutputDisablePitch();
     } else {
-      g_pwmCmd[PWM_OUT_PITCH].power = g_pwmOutput[PWM_OUT_PITCH].power;
+      if(g_pwmOutput[PWM_OUT_PITCH].flags & PWM_OUT_REV_FLAG)
+          g_pwmCmd[PWM_OUT_PITCH].power = -g_pwmOutput[PWM_OUT_PITCH].power;
+      else
+          g_pwmCmd[PWM_OUT_PITCH].power = g_pwmOutput[PWM_OUT_PITCH].power;
       g_pwmCmd[PWM_OUT_PITCH].phase = cmd;
     }
     break;
@@ -253,7 +256,10 @@ void pwmOutputUpdate(const uint8_t channel_id, float cmd) {
     if ((g_pwmOutput[PWM_OUT_ROLL].dt_cmd_id & PWM_OUT_CMD_ID_MASK) == PWM_OUT_CMD_DISABLED) {
       pwmOutputDisableRoll();
     } else {
-        g_pwmCmd[PWM_OUT_ROLL].power = g_pwmOutput[PWM_OUT_ROLL].power;
+        if(g_pwmOutput[PWM_OUT_ROLL].flags & PWM_OUT_REV_FLAG)
+            g_pwmCmd[PWM_OUT_ROLL].power = -g_pwmOutput[PWM_OUT_ROLL].power;
+        else
+            g_pwmCmd[PWM_OUT_ROLL].power = g_pwmOutput[PWM_OUT_ROLL].power;
         g_pwmCmd[PWM_OUT_ROLL].phase = cmd;
     }
     break;
@@ -261,7 +267,10 @@ void pwmOutputUpdate(const uint8_t channel_id, float cmd) {
     if ((g_pwmOutput[PWM_OUT_YAW].dt_cmd_id & PWM_OUT_CMD_ID_MASK) == PWM_OUT_CMD_DISABLED) {
       pwmOutputDisableYaw();
     } else {
-        g_pwmCmd[PWM_OUT_YAW].power = g_pwmOutput[PWM_OUT_YAW].power;
+        if(g_pwmOutput[PWM_OUT_YAW].flags & PWM_OUT_REV_FLAG)
+            g_pwmCmd[PWM_OUT_YAW].power = -g_pwmOutput[PWM_OUT_YAW].power;
+        else
+            g_pwmCmd[PWM_OUT_YAW].power = g_pwmOutput[PWM_OUT_YAW].power;
         g_pwmCmd[PWM_OUT_YAW].phase = cmd;
     }
     break;

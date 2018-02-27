@@ -17,6 +17,14 @@
 #ifndef _ATTITUDE_H_
 #define _ATTITUDE_H_
 
+#include "mpu6050.h"
+
+/* Input modes: */
+#define INPUT_MODE_ANGLE          0x00 //Earth frame
+#define INPUT_MODE_SPEED          0x01
+#define INPUT_MODE_BODYFRAME      0x02 //keep constant with regards to body
+#define INPUT_MODE_NONE           0x03
+
 typedef struct tagPIDSettings {
   uint8_t P;
   uint8_t I;
@@ -31,10 +39,16 @@ typedef struct tagInputModeStruct {
   uint8_t mode_id;
 } __attribute__((packed)) InputModeStruct, *PInputModeStruct;
 
+typedef struct tagCanInputStruct {
+    float cmd; //RAD/S or RAD depending on mode
+    uint8_t mode;
+} CanInputStruct;
+
 extern float g_motorOffset[3];
 extern PIDSettings g_pidSettings[3];
 extern InputModeStruct g_modeSettings[3];
 extern uint16_t g_cfSettings[2];
+extern CanInputStruct g_canInput[3];
 
 #ifdef __cplusplus
 extern "C" {

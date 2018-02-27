@@ -2,9 +2,14 @@
 #include <uavcan/uavcan.hpp>
 #include <uavcan_stm32/uavcan_stm32.hpp>
 #include <kmti/gimbal/MotorCommand.hpp>
+#include <uavcan/equipment/camera_gimbal/AngularCommand.hpp>
+#include <uavcan/equipment/camera_gimbal/Mode.hpp>
 
 #include <ch.hpp>
+#include <hal.h>
 #include <pwmio.h>
+#include <attitude.h>
+#include <misc.h>
 
 binary_semaphore_t motor_data;
 
@@ -28,6 +33,39 @@ namespace Node {
 
     if (getNode().start() < 0) {
       chSysHalt("UAVCAN init fail");
+    }
+
+    uavcan::Subscriber<uavcan::equipment::camera_gimbal::AngularCommand> ang_sub(getNode());
+    const int mot_sub_start_res = ang_sub.start(
+        [&](const uavcan::ReceivedDataStructure<uavcan::equipment::camera_gimbal::AngularCommand>& msg)
+        {
+            float cmd[3];
+            uint8_t mode = msg.mode.command_mode;
+            float q[4];
+            q[0] = msg.quaternion_xyzw[3];
+            q[1] = msg.quaternion_xyzw[0];
+            q[2] = msg.quaternion_xyzw[1];
+            q[3] = msg.quaternion_xyzw[2];
+            Quaternion2RPY(q, cmd);
+            if(mode == uavcan::equipment::camera_gimbal::Mode::COMMAND_MODE_ANGULAR_VELOCITY) {
+                for(uint8_t i = 0; i < 3; i++) {
+                    g_canInput[i].mode = INPUT_MODE_SPEED;
+                    g_canInput[i].cmd = cmd[i];
+                }
+            } else if(mode == uavcan::equipment::camera_gimbal::Mode::COMMAND_MODE_ORIENTATION_FIXED_FRAME) {
+                for(uint8_t i = 0; i < 3; i++) {
+                    g_canInput[i].mode = INPUT_MODE_ANGLE;
+                    g_canInput[i].cmd = cmd[i];
+                }
+            } else {
+                for(uint8_t i = 0; i < 3; i++) {
+                    g_canInput[i].mode = INPUT_MODE_NONE;
+                }
+            }
+        });
+
+    if(mot_sub_start_res < 0) {
+
     }
 
     uavcan::Publisher<kmti::gimbal::MotorCommand> mot_pub(getNode());
