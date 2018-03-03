@@ -79,7 +79,7 @@ typedef struct tagMixedInputStruct {
 } __attribute__((packed)) MixedInputStruct, *PMixedInputStruct;
 
 typedef struct tagPMWCommandStuct {
-    uint8_t power;
+    int8_t power;
     float phase;
 } PWMCommandStruct;
 
