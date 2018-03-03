@@ -53,17 +53,14 @@ uint8_t g_streamIdx = 0;
 /**
  * Local variables
  */
-/* I2C2 configuration for I2C driver 1 */
+/* I2C1 configuration for I2C driver 1 */
 static const I2CConfig i2cfg_d1 = {
-    STM32_TIMINGR_PRESC(1U) | STM32_TIMINGR_SCLL(199U) |
-    STM32_TIMINGR_SCLH(195U) | STM32_TIMINGR_SDADEL(2U) |
-    STM32_TIMINGR_SCLDEL(4U),
+    STM32_TIMINGR_PRESC(0U) | STM32_TIMINGR_SCLL(9U) |
+    STM32_TIMINGR_SCLH(2U) | STM32_TIMINGR_SDADEL(0U) |
+    STM32_TIMINGR_SCLDEL(0U),
   0,
   0
 };
-
-/* Virtual serial port over USB. */
-SerialUSBDriver SDU1;
 
 /* Binary semaphore indicating that new data is ready to be processed. */
 static binary_semaphore_t bsemIMU1DataReady;
@@ -127,6 +124,7 @@ static void streamUpdateData(PIMUStruct pIMU) {
 static THD_WORKING_AREA(waBlinkerThread, 64);
 static msg_t BlinkerThread(void *arg) {
   (void)arg;
+  chRegSetThreadName("blinker");
   while (!chThdShouldTerminateX()) {
     systime_t time;
     if (g_boardStatus & IMU_CALIBRATION_MASK) {
@@ -150,7 +148,7 @@ static msg_t PollMPU6050Thread(void *arg) {
   systime_t time;
   uint32_t warmUp = 0;
   (void)arg;
-
+  chRegSetThreadName("sensor_poll");
   time = chVTGetSystemTime();
   do {
     if (!mpu6050GetNewData(&g_IMU1)) {
@@ -186,6 +184,7 @@ static msg_t PollMPU6050Thread(void *arg) {
 static THD_WORKING_AREA(waAttitudeThread, 2048);
 static msg_t AttitudeThread(void *arg) {
   (void)arg;
+  chRegSetThreadName("attitude");
   attitudeInit();
   while (!chThdShouldTerminateX()) {
     /* Process IMU1 new data ready event. */
@@ -230,7 +229,7 @@ static const CRCConfig crc32_config = {
 
 static Node::uavcanNodeThread node;
 int main(void) {
-    thread_t *tpBlinker  = NULL;
+     thread_t *tpBlinker  = NULL;
     thread_t *tpPoller   = NULL;
     thread_t *tpAttitude = NULL;
 
@@ -306,7 +305,7 @@ int main(void) {
   tpBlinker = chThdCreateStatic(waBlinkerThread, sizeof(waBlinkerThread),
     LOWPRIO, (tfunc_t)BlinkerThread, NULL);
 
-  node.start(NORMALPRIO);
+  node.start(NORMALPRIO-10);
 
   /* Normal main() thread activity. */
   while (g_runMain) {

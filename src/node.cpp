@@ -24,7 +24,7 @@ namespace Node {
 
   void uavcanNodeThread::main() {
 
-
+    setName("uavcan_node");
     uavcan::uint32_t bitrate = 1000000;
     can.init(bitrate);
 

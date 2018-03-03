@@ -194,14 +194,13 @@
  * USB bus activation macro, required by the USB driver.
  */
 #define usb_lld_connect_bus(usbp) { \
-  palSetPadMode(GPIOC, GPIOC_USB_D, PAL_MODE_INPUT); \
+  palSetPad(GPIOC, GPIOC_USB_D); \
 }
 
 /*
  * USB bus de-activation macro, required by the USB driver.
  */
 #define usb_lld_disconnect_bus(usbp) { \
-  palSetPadMode(GPIOC, GPIOC_USB_D, PAL_MODE_OUTPUT_PUSHPULL); \
   palClearPad(GPIOC, GPIOC_USB_D); \
 }
 

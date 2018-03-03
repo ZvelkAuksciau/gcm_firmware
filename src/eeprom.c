@@ -40,9 +40,9 @@
 /* 8 Bytes per page; */
 #define EEPROM_24C02_PAGE_SIZE  0x08
 /* I2C read transaction time-out in milliseconds. */
-#define EEPROM_READ_TIMEOUT_MS  50
+#define EEPROM_READ_TIMEOUT_MS  15
 /* I2C write transaction time-out in milliseconds. */
-#define EEPROM_WRITE_TIMEOUT_MS 50
+#define EEPROM_WRITE_TIMEOUT_MS 15
 /* The beginning of the EEPROM. */
 #define EEPROM_START_ADDR       0x00
 
