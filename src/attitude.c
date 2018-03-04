@@ -61,6 +61,7 @@ typedef struct tagPIDStruct {
   float prevDist;
   float prevSpeed;
   float prevCmd;
+  float errSum;
 } __attribute__((packed)) PIDStruct, *PPIDStruct;
 
 /**
@@ -126,11 +127,10 @@ static float accel_alpha = 0.0f;
 
 /* PID controller parameters. */
 static PIDStruct PID[3] = {
-  {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-  {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-  {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
+  {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+  {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
 };
-
 /**
  * @brief  Implements basic PID stabilization of the motor speed.
  * @param  cmd_id - command id to apply PID action to.
@@ -143,29 +143,36 @@ static float pidControllerApply(uint8_t cmd_id, float err, float rot) {
   /* Distance for the motor to travel: */
   float dist = circadjust(err, M_PI);
   /* Convert mechanical distance to electrical distance: */
-  dist *= poles2;
+  //dist *= poles2;
   /* Convert mechanical rotation to electrical rotation: */
-  rot *= poles2;
+  //rot *= poles2;
   /* If there is a distance to travel then rotate the motor in small steps: */
-  float step = constrain(dist*PID[cmd_id].I, MOTOR_STEP_LIMIT_MIN, MOTOR_STEP_LIMIT_MAX);
+  //float step = constrain(dist*PID[cmd_id].I, MOTOR_STEP_LIMIT_MIN, MOTOR_STEP_LIMIT_MAX);
+  PID[cmd_id].errSum += PID[cmd_id].I * dist/10.0f;
+  if(PID[cmd_id].errSum > 1.0f) {
+    PID[cmd_id].errSum = 1.0f;
+  } else if(PID[cmd_id].errSum < -1.0f) {
+    PID[cmd_id].errSum = -1.0f;
+  }
+  float step = PID[cmd_id].errSum;
   /* Calculate proportional speed of the motor: */
   float speed = dist - PID[cmd_id].prevDist;
-  step += speed*PID[cmd_id].P;
+  step += dist*PID[cmd_id].P;
   /* Account for the acceleration of the motor: */
-  step += (speed - PID[cmd_id].prevSpeed)*PID[cmd_id].D;
+  step += speed*PID[cmd_id].D;
   /* Add rotation command. */
-  step += rot;
+  //step += rot;
   /* Update offset of the motor: */
-  g_motorOffset[cmd_id] += step / poles2;
+  //g_motorOffset[cmd_id] += step / poles2;
   /* Wind-up guard limits motor offset range to one mechanical rotation: */
-  g_motorOffset[cmd_id] = circadjust(g_motorOffset[cmd_id], M_PI);
+  //g_motorOffset[cmd_id] = circadjust(g_motorOffset[cmd_id], M_PI);
   /* Update motor position: */
-  float cmd = PID[cmd_id].prevCmd + step;
-  /* Normalize command to -M_PI..M_PI range: */
-  if (cmd < 0.0f) {
-    cmd = fmodf(cmd - M_PI, -M_TWOPI) + M_PI;
-  } else {
-    cmd = fmodf(cmd + M_PI,  M_TWOPI) - M_PI;
+  float cmd = step;//PID[cmd_id].prevCmd + step;
+  /* Normalize command to -1..1 range: */
+  if (cmd < -1.0f) {
+    cmd = -1.0f;
+  } else if(cmd > 1.0f) {
+    cmd = 1.0f;
   }
   /* Save values for the next iteration: */
   PID[cmd_id].prevDist = dist;

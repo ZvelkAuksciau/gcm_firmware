@@ -246,10 +246,9 @@ void pwmOutputUpdate(const uint8_t channel_id, float cmd) {
       pwmOutputDisablePitch();
     } else {
       if(g_pwmOutput[PWM_OUT_PITCH].flags & PWM_OUT_REV_FLAG)
-          g_pwmCmd[PWM_OUT_PITCH].power = -g_pwmOutput[PWM_OUT_PITCH].power;
+          g_pwmCmd[PWM_OUT_PITCH].phase = -cmd;
       else
-          g_pwmCmd[PWM_OUT_PITCH].power = g_pwmOutput[PWM_OUT_PITCH].power;
-      g_pwmCmd[PWM_OUT_PITCH].phase = cmd;
+          g_pwmCmd[PWM_OUT_PITCH].phase = cmd;
     }
     break;
   case PWM_OUT_ROLL:
@@ -268,10 +267,9 @@ void pwmOutputUpdate(const uint8_t channel_id, float cmd) {
       pwmOutputDisableYaw();
     } else {
         if(g_pwmOutput[PWM_OUT_YAW].flags & PWM_OUT_REV_FLAG)
-            g_pwmCmd[PWM_OUT_YAW].power = -g_pwmOutput[PWM_OUT_YAW].power;
+            g_pwmCmd[PWM_OUT_YAW].phase = -cmd;
         else
-            g_pwmCmd[PWM_OUT_YAW].power = g_pwmOutput[PWM_OUT_YAW].power;
-        g_pwmCmd[PWM_OUT_YAW].phase = cmd;
+            g_pwmCmd[PWM_OUT_YAW].phase = cmd;
     }
     break;
   default:;
