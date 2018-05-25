@@ -252,7 +252,7 @@ int main(void) {
    */
   usbStop(serusbcfg.usbp);
   usbDisconnectBus(serusbcfg.usbp);
-  chThdSleepMilliseconds(500);
+  chThdSleepMilliseconds(1000);
   usbConnectBus(serusbcfg.usbp);
   usbStart(serusbcfg.usbp, &usbcfg);
 

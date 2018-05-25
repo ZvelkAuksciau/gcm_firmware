@@ -6,7 +6,7 @@
 
 namespace Node {
 
-  constexpr unsigned NodePoolSize = 400;
+  constexpr unsigned NodePoolSize = 4096;
   uavcan::Node<NodePoolSize>& getNode();
 
   class uavcanNodeThread : public chibios_rt::BaseStaticThread<4000> {

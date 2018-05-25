@@ -29,7 +29,7 @@ namespace Node {
     can.init(bitrate);
 
     getNode().setName("org.kmti.gmm_controler");
-    getNode().setNodeID(10);
+    getNode().setNodeID(15);
 
     if (getNode().start() < 0) {
       chSysHalt("UAVCAN init fail");
@@ -76,7 +76,7 @@ namespace Node {
     getNode().setModeOperational();
 
     while(true) {
-      if (getNode().spin(uavcan::MonotonicDuration::fromMSec(2)) < 0) {
+      if (getNode().spin(uavcan::MonotonicDuration::fromMSec(10)) < 0) {
         chSysHalt("UAVCAN spin fail");
       }
       for(int i = 0; i < 3; i++) {
