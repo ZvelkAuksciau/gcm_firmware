@@ -36,10 +36,13 @@ namespace Node {
       chSysHalt("UAVCAN init fail");
     }
 
+    systime_t last_command = 0;
+
     uavcan::Subscriber<uavcan::equipment::camera_gimbal::AngularCommand> ang_sub(getNode());
     const int mot_sub_start_res = ang_sub.start(
         [&](const uavcan::ReceivedDataStructure<uavcan::equipment::camera_gimbal::AngularCommand>& msg)
         {
+            last_command = chVTGetSystemTime();
             float cmd[3];
             uint8_t mode = msg.mode.command_mode;
             float q[4];
@@ -87,6 +90,14 @@ namespace Node {
     while(true) {
       if (getNode().spin(uavcan::MonotonicDuration::fromMSec(10)) < 0) {
         chSysHalt("UAVCAN spin fail");
+      }
+      if(last_command != 0 && last_command + MS2ST(200) < chVTGetSystemTime()) {
+          last_command = 0;
+          for(uint8_t i = 0; i < 3; i++) {
+              if(g_canInput[i].mode == INPUT_MODE_SPEED) {
+                  g_canInput[i].cmd = 0.0f;
+              }
+          }
       }
       for(int i = 0; i < 3; i++) {
           mot_msg.cmd[i] = g_pwmCmd[i].phase;
