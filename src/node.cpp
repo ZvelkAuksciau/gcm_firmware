@@ -81,7 +81,6 @@ namespace Node {
     uavcan::Publisher<kmti::gimbal::MotorCommand> mot_pub(getNode());
     mot_pub.init();
     kmti::gimbal::MotorCommand mot_msg;
-    mot_msg.power[0] = 0.5f;
 
     getNode().setModeOperational();
 
@@ -91,7 +90,6 @@ namespace Node {
       }
       for(int i = 0; i < 3; i++) {
           mot_msg.cmd[i] = g_pwmCmd[i].phase;
-          mot_msg.power[i] = g_pwmCmd[i].power/100.0f;
       }
         mot_pub.broadcast(mot_msg);
     }
