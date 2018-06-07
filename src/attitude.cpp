@@ -39,6 +39,8 @@
 #include "misc.h"
 #include "attitude.h"
 
+#include "misc.hpp"
+
 /* C libraries: */
 #include <string.h>
 
@@ -356,37 +358,42 @@ void cameraRotationUpdate(void) {
  * @brief
  */
 void actuatorsUpdate(void) {
-  float cmd = 0.0f;
   float err;
+
+  //Quaterion g_imu(g_IMU1.qIMU[0], g_IMU1.qIMU[1], g_IMU1.qIMU[2], g_IMU1.qIMU[3]);
+  Quaterion g_imu = Quaterion::FromEulerAngles(g_IMU1.rpy[0], 0.0f, 0.0f);
+  Quaterion g_motors = Quaterion::FromEulerAngles(-g_motorOffset[0], 0.0f, 0.0f);//g_motorOffset[1], g_motorOffset[2]);
+  Quaterion q = g_imu * g_motors.inverse();
+  float cmd[3] = { 0.0f };
   /* Pitch: */
   uint8_t cmd_id = g_pwmOutput[PWM_OUT_PITCH].dt_cmd_id & PWM_OUT_CMD_ID_MASK;
   if (cmd_id != PWM_OUT_CMD_DISABLED) {
     err = camAtti[cmd_id] - g_IMU1.rpy[cmd_id];
     camAtti[cmd_id] += camRot[cmd_id];
     camAtti[cmd_id] = circadjust(camAtti[cmd_id], M_PI);
-    cmd = pidControllerApply(cmd_id, err, camRot[cmd_id]);
+    cmd[0] = pidControllerApply(cmd_id, err, camRot[cmd_id]);
   }
-  pwmOutputUpdate(PWM_OUT_PITCH, cmd);
-  cmd = 0.0f;
   /* Roll: */
   cmd_id = g_pwmOutput[PWM_OUT_ROLL].dt_cmd_id & PWM_OUT_CMD_ID_MASK;
   if (cmd_id != PWM_OUT_CMD_DISABLED) {
     err = camAtti[cmd_id] - g_IMU1.rpy[cmd_id];
     camAtti[cmd_id] += camRot[cmd_id];
     camAtti[cmd_id] = circadjust(camAtti[cmd_id], M_PI);
-    cmd = pidControllerApply(cmd_id, err, camRot[cmd_id]);
+    cmd[1] = pidControllerApply(cmd_id, err, camRot[cmd_id]);
   }
-  pwmOutputUpdate(PWM_OUT_ROLL, cmd);
-  cmd = 0.0f;
   /* Yaw: */
   cmd_id = g_pwmOutput[PWM_OUT_YAW].dt_cmd_id & PWM_OUT_CMD_ID_MASK;
   if (cmd_id != PWM_OUT_CMD_DISABLED) {
     err = camAtti[cmd_id] - g_IMU1.rpy[cmd_id];
     camAtti[cmd_id] += camRot[cmd_id];
     camAtti[cmd_id] = circadjust(camAtti[cmd_id], M_PI);
-    cmd = pidControllerApply(cmd_id, err, camRot[cmd_id]);
+    cmd[2] = pidControllerApply(cmd_id, err, camRot[cmd_id]);
   }
-  pwmOutputUpdate(PWM_OUT_YAW, cmd);
+  Quaterion cmd_vector(0.0f, cmd[0], cmd[1], cmd[2]);
+  cmd_vector = q.conjugate() * cmd_vector * q;
+  pwmOutputUpdate(PWM_OUT_PITCH, cmd_vector.get_x());
+  pwmOutputUpdate(PWM_OUT_ROLL, cmd_vector.get_y());
+  pwmOutputUpdate(PWM_OUT_YAW, cmd_vector.get_z());
 }
 
 /**

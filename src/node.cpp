@@ -4,6 +4,7 @@
 #include <kmti/gimbal/MotorCommand.hpp>
 #include <uavcan/equipment/camera_gimbal/AngularCommand.hpp>
 #include <uavcan/equipment/camera_gimbal/Mode.hpp>
+#include <kmti/gimbal/MotorStatus.hpp>
 
 #include <ch.hpp>
 #include <hal.h>
@@ -28,7 +29,7 @@ namespace Node {
     uavcan::uint32_t bitrate = 1000000;
     can.init(bitrate);
 
-    getNode().setName("org.kmti.gmm_controler");
+    getNode().setName("org.kmti.gcm_controler");
     getNode().setNodeID(15);
 
     if (getNode().start() < 0) {
@@ -63,6 +64,15 @@ namespace Node {
                 }
             }
         });
+
+    uavcan::Subscriber<kmti::gimbal::MotorStatus> mot_stat_sub(getNode());
+    const int mot_stat_sub_res = mot_stat_sub.start(
+            [&](const uavcan::ReceivedDataStructure<kmti::gimbal::MotorStatus>& msg)
+            {
+                if(msg.axis_id >= 0 && msg.axis_id < 3) {
+                    g_motorOffset[msg.axis_id] = msg.motor_pos_rad;
+                }
+            });
 
     if(mot_sub_start_res < 0) {
 
