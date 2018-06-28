@@ -40,7 +40,7 @@
  * Global variables
  */
 /* Status of the board. */
-uint32_t g_board_mode = 0;
+uint32_t g_boardStatus = 0;
 /* Main thread termination flag. */
 bool g_runMain = TRUE;
 /* I2C error info structure. */
@@ -127,7 +127,7 @@ static msg_t BlinkerThread(void *arg) {
   chRegSetThreadName("blinker");
   while (!chThdShouldTerminateX()) {
     systime_t time;
-    if (g_board_mode & IMU_CALIBRATION_MASK) {
+    if (g_boardStatus & IMU_CALIBRATION_MASK) {
       time = 50;
     } else {
       time = serusbcfg.usbp->state == USB_ACTIVE ? 250 : 500;
@@ -189,9 +189,9 @@ static msg_t AttitudeThread(void *arg) {
   while (!chThdShouldTerminateX()) {
     /* Process IMU1 new data ready event. */
     if (chBSemWait(&bsemIMU1DataReady) == MSG_OK) {
-      if (g_board_mode & IMU1_CALIBRATION_MASK) {
-        if (imuCalibrate(&g_IMU1, g_board_mode & IMU1_CALIBRATE_ACCEL)) {
-          g_board_mode &= ~IMU1_CALIBRATION_MASK;
+      if (g_boardStatus & IMU1_CALIBRATION_MASK) {
+        if (imuCalibrate(&g_IMU1, g_boardStatus & IMU1_CALIBRATE_ACCEL)) {
+          g_boardStatus &= ~IMU1_CALIBRATION_MASK;
         }
       } else {
         attitudeUpdate(&g_IMU1);
@@ -202,7 +202,7 @@ static msg_t AttitudeThread(void *arg) {
       streamUpdateData(&g_IMU1);
     }
 
-    if (g_board_mode & IMU_CALIBRATION_MASK) {
+    if (g_boardStatus & IMU_CALIBRATION_MASK) {
       pwmOutputDisableAll();
     } else {
       cameraRotationUpdate();
@@ -273,16 +273,16 @@ int main(void) {
      aren't pull-up resistors on SDA and SCL lines, therefore it is
      impossible to communicate with EEPROM without the sensor connected. */
   if (eepromLoadSettings()) {
-    g_board_mode |= EEPROM_24C02_DETECTED;
+    g_boardStatus |= EEPROM_24C02_DETECTED;
   }
 
   /* Initializes the MPU6050 sensor1. */
   if (mpu6050Init(g_IMU1.addr)) {
-    g_board_mode |= MPU6050_LOW_DETECTED;
-    g_board_mode |= IMU1_CALIBRATE_GYRO;
+    g_boardStatus |= MPU6050_LOW_DETECTED;
+    g_boardStatus |= IMU1_CALIBRATE_GYRO;
   }
 
-  if (g_board_mode & MPU6050_LOW_DETECTED) {
+  if (g_boardStatus & MPU6050_LOW_DETECTED) {
     /* Creates a taken binary semaphore. */
       chBSemObjectInit(&bsemIMU1DataReady, TRUE);
     /* Creates a taken binary semaphore. */
@@ -309,7 +309,7 @@ int main(void) {
 
   /* Normal main() thread activity. */
   while (g_runMain) {
-    if ((g_board_mode & EEPROM_24C02_DETECTED) && eepromIsDataLeft()) {
+    if ((g_boardStatus & EEPROM_24C02_DETECTED) && eepromIsDataLeft()) {
       eepromContinueSaving();
     }
     g_chnp = serusbcfg.usbp->state == USB_ACTIVE ? (BaseChannel *)&SDU1 : (BaseChannel *)&SD3;
