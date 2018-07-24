@@ -1,26 +1,21 @@
-/*
- * misc.hpp
- *
- *  Created on: Jun 6, 2018
- *      Author: zak
- */
-
 #ifndef SRC_MISC_HPP_
 #define SRC_MISC_HPP_
 
+#include "math.h"
+
 class Quaterion {
 private:
+    float w;
     float x;
     float y;
     float z;
-    float w;
 
 public:
     Quaterion(float w, float x, float y, float z) :
+        w(w),
         x(x),
         y(y),
-        z(z),
-        w(w)
+        z(z)
     { }
 
     Quaterion() :
@@ -105,6 +100,30 @@ public:
 
     Quaterion conjugate() {
         return Quaterion(w, -x, -y, -z);
+    }
+};
+
+class Location {
+public:
+    float lat;
+    float lng;
+    float alt;
+    Location():
+        lat(0.0f),
+        lng(0.0f),
+        alt(0.0f)
+    { }
+
+    Location(float lat, float lng, float alt):
+        lat(lat),
+        lng(lng),
+        alt(alt)
+    { }
+
+    bool is_zero() {
+        if(lat == 0.0f && lng == 0.0f && alt == 0.0f)
+            return true;
+        return false;
     }
 };
 

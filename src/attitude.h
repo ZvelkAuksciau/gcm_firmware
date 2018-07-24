@@ -18,12 +18,14 @@
 #define _ATTITUDE_H_
 
 #include "mpu6050.h"
+#include "misc.hpp"
 
 /* Input modes: */
 #define INPUT_MODE_ANGLE          0x00 //Earth frame
 #define INPUT_MODE_SPEED          0x01
 #define INPUT_MODE_BODYFRAME      0x02 //keep constant with regards to body
 #define INPUT_MODE_NONE           0x03
+#define INPUT_MODE_GPS_COORD      0x04
 
 typedef struct tagPIDSettings {
   uint8_t P;
@@ -49,6 +51,9 @@ extern PIDSettings g_pidSettings[3];
 extern InputModeStruct g_modeSettings[3];
 extern uint16_t g_cfSettings[2];
 extern CanInputStruct g_canInput[3];
+extern Quaterion g_autopilot_attitude;
+extern Location g_location;
+extern Location g_target_loc;
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,6 +65,7 @@ extern "C" {
   void pidSettingsUpdate(const PPIDSettings pNewSettings);
   void inputModeSettingsUpdate(const PInputModeStruct pNewSettings);
   void cfSettingsUpdate(const uint16_t *pNewSettings);
+  void calculate_angle_to_location(Location current_loc, Location target, float target_angles[3]);
 #ifdef __cplusplus
 }
 #endif

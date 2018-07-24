@@ -3,14 +3,19 @@
 #include <uavcan_stm32/uavcan_stm32.hpp>
 #include <kmti/gimbal/MotorCommand.hpp>
 #include <uavcan/equipment/camera_gimbal/AngularCommand.hpp>
+#include <uavcan/equipment/camera_gimbal/GEOPOICommand.hpp>
 #include <uavcan/equipment/camera_gimbal/Mode.hpp>
 #include <kmti/gimbal/MotorStatus.hpp>
+
+#include <uavcan/equipment/ahrs/Solution.hpp>
+#include <uavcan/equipment/gnss/Fix2.hpp>
 
 #include <ch.hpp>
 #include <hal.h>
 #include <pwmio.h>
 #include <attitude.h>
 #include <misc.h>
+#include <misc.hpp>
 
 binary_semaphore_t motor_data;
 
@@ -68,6 +73,17 @@ namespace Node {
             }
         });
 
+    uavcan::Subscriber<uavcan::equipment::camera_gimbal::GEOPOICommand> geo_poi_sub(getNode());
+    geo_poi_sub.start(
+            [&](const uavcan::ReceivedDataStructure<uavcan::equipment::camera_gimbal::GEOPOICommand>& msg)
+            {
+                Location target(msg.longitude_deg_1e7/1e7f, msg.latitude_deg_1e7/1e7f, msg.height_cm/100.0f);
+                g_target_loc = target;
+                for(int i = 0; i < 3; i++) {
+                    g_canInput[i].mode = INPUT_MODE_GPS_COORD;
+                }
+            });
+
     uavcan::Subscriber<kmti::gimbal::MotorStatus> mot_stat_sub(getNode());
     const int mot_stat_sub_res = mot_stat_sub.start(
             [&](const uavcan::ReceivedDataStructure<kmti::gimbal::MotorStatus>& msg)
@@ -77,9 +93,23 @@ namespace Node {
                 }
             });
 
-    if(mot_sub_start_res < 0) {
+    uavcan::Subscriber<uavcan::equipment::ahrs::Solution> ardupilot_ahrs(getNode());
+    const int ardupilot_ahrs_sub_res = ardupilot_ahrs.start(
+            [&](const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::Solution>& msg)
+            {
+                float cmd[3];
+                Quaterion autopilot_orient(msg.orientation_xyzw[3], msg.orientation_xyzw[0], msg.orientation_xyzw[1],
+                        msg.orientation_xyzw[2]);
+                g_autopilot_attitude = autopilot_orient;
+            });
 
-    }
+    uavcan::Subscriber<uavcan::equipment::gnss::Fix2> ardupilot_fix(getNode());
+    ardupilot_fix.start(
+            [&](const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix2>& msg)
+            {
+                Location loc(msg.latitude_deg_1e8 / 1e8, msg.longitude_deg_1e8 / 1e8, msg.height_msl_mm / 1e3);
+                g_location = loc;
+            });
 
     uavcan::Publisher<kmti::gimbal::MotorCommand> mot_pub(getNode());
     mot_pub.init();

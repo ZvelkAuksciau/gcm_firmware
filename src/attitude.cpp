@@ -51,7 +51,7 @@
 
 #define ACCEL_TAU                 0.1f
 #define INPUT_SIGNAL_ALPHA        100.0f
-#define MODE_FOLLOW_DEAD_BAND     M_PI / 36.0f
+#define MODE_FOLLOW_DEAD_BAND     0.01f
 
 
 
@@ -74,6 +74,10 @@ float g_motorOffset[3] = {0.0f, 0.0f, 0.0f};
 
 CanInputStruct g_canInput[3] = { 0 };
 
+Quaterion g_autopilot_attitude;
+Location g_location;
+Location g_target_loc;
+
 /**
  * Default PID settings.
  */
@@ -81,7 +85,7 @@ PIDSettings g_pidSettings[3] = {
 /* P, I, D */
   {0, 0, 0}, /* Pitch PID */
   {0, 0, 0}, /* Roll  PID */
-  {0, 0, 0}, /* Yaw   PID */
+  {0, 0, 0}, /* Yaw   PLocationID */
 };
 
 /**
@@ -310,48 +314,84 @@ __attribute__((optimize("O3"))) void attitudeUpdate(PIMUStruct pIMU) {
 /**
  * @brief
  */
+__attribute__((optimize("O0")))
 void cameraRotationUpdate(void) {
-  uint8_t i;
-  float coef;
-  float speedLimit;
+    uint8_t i;
+    float coef;
+    float speedLimit;
 
-  for (i = 0; i < 3; i++) {
-    speedLimit = ((float)g_modeSettings[i].speed)*DEG2RAD;
+    float target_angles[3];
 
-    if (g_canInput[i].mode & INPUT_MODE_BODYFRAME) {
-      /* Calculate offset of the gimbal: */
-      coef = g_modeSettings[i].offset*DEG2RAD - g_motorOffset[i];
-      if (coef > MODE_FOLLOW_DEAD_BAND) {
-        coef -= MODE_FOLLOW_DEAD_BAND;
-        /* Convert to speed: */
-        coef /= INPUT_SIGNAL_ALPHA*FIXED_DT_STEP;
-      } else if (coef < -MODE_FOLLOW_DEAD_BAND) {
-        coef += MODE_FOLLOW_DEAD_BAND;
-        /* Convert to speed: */
-        coef /= INPUT_SIGNAL_ALPHA*FIXED_DT_STEP;
-      } else {
-        coef = 0.0f;
-      }
-    } else if (g_canInput[i].mode == INPUT_MODE_NONE) { //Unknow mode
-      camRot[i] = 0.0f;
-      continue;
-    } else {
-      coef = g_canInput[i].cmd;
+    if (!g_target_loc.is_zero()) {
+        calculate_angle_to_location(g_location, g_target_loc, target_angles);
+        g_canInput[0].mode = INPUT_MODE_ANGLE;
+        g_canInput[2].mode = INPUT_MODE_BODYFRAME;
 
-      if (g_canInput[i].mode & INPUT_MODE_SPEED) {
-        coef = constrain(coef, -speedLimit, speedLimit);
-        camRotSpeedPrev[i] += (coef - camRotSpeedPrev[i]) / INPUT_SIGNAL_ALPHA;
-        coef = camRotSpeedPrev[i];
-      } else { /* INPUT_MODE_ANGLE */
-        /* Calculate angle from input data: */
-        coef = constrain(coef, (float)g_modeSettings[i].min_angle*DEG2RAD, (float)g_modeSettings[i].max_angle*DEG2RAD);
-        /* Convert angle difference to speed: */
-        coef = (coef - camAtti[i]) / INPUT_SIGNAL_ALPHA / FIXED_DT_STEP;
-      }
+        g_canInput[0].cmd = target_angles[0];
+        float att[3];
+        g_autopilot_attitude.GetEulerAngles(att[0], att[1], att[2]);
+        g_canInput[2].cmd = target_angles[2] - att[2];
     }
-    coef = constrain(coef, -speedLimit, speedLimit);
-    camRot[i] = coef*FIXED_DT_STEP;
-  }
+
+    for (i = 0; i < 3; i++) {
+        speedLimit = ((float) g_modeSettings[i].speed) * DEG2RAD;
+
+        if (g_canInput[i].mode & INPUT_MODE_BODYFRAME) {
+            /* Calculate offset of the gimbal: */
+            coef = g_motorOffset[i] - g_canInput[i].cmd;
+            if(PID[i].prevDist > 0.1f || PID[i].prevDist < -0.1f) {
+                coef = 0.0f;
+            }
+            if (coef > MODE_FOLLOW_DEAD_BAND) {
+                coef -= MODE_FOLLOW_DEAD_BAND;
+                /* Convert to speed: */
+                coef /= INPUT_SIGNAL_ALPHA * FIXED_DT_STEP;
+            } else if (coef < -MODE_FOLLOW_DEAD_BAND) {
+                coef += MODE_FOLLOW_DEAD_BAND;
+                /* Convert to speed: */
+                coef /= INPUT_SIGNAL_ALPHA * FIXED_DT_STEP;
+            } else {
+                coef = 0.0f;
+            }
+        } else if (g_canInput[i].mode == INPUT_MODE_NONE) { //Unknow mode
+            camRot[i] = 0.0f;
+            continue;
+        } else if (g_canInput[i].mode == INPUT_MODE_GPS_COORD) {
+            coef = g_motorOffset[i];
+            if(PID[i].prevDist > 0.1f || PID[i].prevDist < -0.1f) {
+                coef = 0.0f;
+            }
+            if (coef > MODE_FOLLOW_DEAD_BAND) {
+                coef -= MODE_FOLLOW_DEAD_BAND;
+                /* Convert to speed: */
+                coef /= INPUT_SIGNAL_ALPHA * FIXED_DT_STEP;
+            } else if (coef < -MODE_FOLLOW_DEAD_BAND) {
+                coef += MODE_FOLLOW_DEAD_BAND;
+                /* Convert to speed: */
+                coef /= INPUT_SIGNAL_ALPHA * FIXED_DT_STEP;
+            } else {
+                coef = 0.0f;
+            }
+        } else {
+            coef = g_canInput[i].cmd;
+
+            if (g_canInput[i].mode & INPUT_MODE_SPEED) {
+                coef = constrain(coef, -speedLimit, speedLimit);
+                camRotSpeedPrev[i] += (coef - camRotSpeedPrev[i])
+                        / INPUT_SIGNAL_ALPHA;
+                coef = camRotSpeedPrev[i];
+            } else { /* INPUT_MODE_ANGLE */
+                /* Calculate angle from input data: */
+                coef = constrain(coef,
+                        (float)g_modeSettings[i].min_angle*DEG2RAD,
+                        (float)g_modeSettings[i].max_angle*DEG2RAD);
+                /* Convert angle difference to speed: */
+                coef = (coef - camAtti[i]) / INPUT_SIGNAL_ALPHA / FIXED_DT_STEP;
+            }
+        }
+        coef = constrain(coef, -speedLimit, speedLimit);
+        camRot[i] = coef * FIXED_DT_STEP;
+    }
 }
 
 /**
@@ -417,4 +457,28 @@ void inputModeSettingsUpdate(const PInputModeStruct pNewSettings) {
 void cfSettingsUpdate(const uint16_t *pNewSettings) {
   memcpy((void *)&g_cfSettings, (void *)pNewSettings, sizeof(g_cfSettings));
   cfUpdateSettings();
+}
+
+
+void calculate_angle_to_location(Location current_loc, Location target, float target_angles[3]) {
+    int32_t target_lng = target.lng * 1e7;
+    int32_t target_lat = target.lat * 1e7;
+    int32_t current_lng = current_loc.lng * 1e7;
+    int32_t current_lat = current_loc.lat * 1e7;
+    int32_t target_alt = target.alt * 100;
+    int32_t current_alt = current_loc.alt * 100;
+
+    float GPS_vector_x = (target_lng - current_lng)
+            * cosf(DEG2RAD*((current_lat + target_lat) * 0.00000005f))
+            * 0.01113195f;
+    float GPS_vector_y = (target_lat - current_lat) * 0.01113195f;
+    float GPS_vector_z = (target_alt -current_alt);
+
+    float target_distance = 100.0f*sqrt(GPS_vector_x*GPS_vector_x+ GPS_vector_y*GPS_vector_y);
+
+    target_angles[0] = atan2f(GPS_vector_z, target_distance); //Pitch
+    target_angles[1] = 0.0f; //Roll
+    target_angles[2] = atan2f(GPS_vector_x, GPS_vector_y); //Absolute  yaw angle
+
+
 }
