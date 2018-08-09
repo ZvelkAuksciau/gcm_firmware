@@ -73,6 +73,7 @@ typedef struct tagPIDStruct {
 float g_motorOffset[3] = {0.0f, 0.0f, 0.0f};
 
 CanInputStruct g_canInput[3] = { 0 };
+CanInputStruct g_controlInput[3] = { 0 };
 
 Quaterion g_autopilot_attitude;
 Location g_location;
@@ -322,23 +323,38 @@ void cameraRotationUpdate(void) {
 
     float target_angles[3];
 
-    if (!g_target_loc.is_zero()) {
-        calculate_angle_to_location(g_location, g_target_loc, target_angles);
-        g_canInput[0].mode = INPUT_MODE_ANGLE;
-        g_canInput[2].mode = INPUT_MODE_BODYFRAME;
+    if(g_canInput[0].mode == INPUT_MODE_GPS_COORD) {
+        if (!g_target_loc.is_zero()) {
+            calculate_angle_to_location(g_location, g_target_loc, target_angles);
+            g_controlInput[0].mode = INPUT_MODE_ANGLE;
+            g_controlInput[2].mode = INPUT_MODE_BODYFRAME;
 
-        g_canInput[0].cmd = target_angles[0];
-        float att[3];
-        g_autopilot_attitude.GetEulerAngles(att[0], att[1], att[2]);
-        g_canInput[2].cmd = target_angles[2] - att[2];
+            g_controlInput[0].cmd = target_angles[0];
+            float att[3];
+            g_autopilot_attitude.GetEulerAngles(att[0], att[1], att[2]);
+            g_controlInput[2].cmd = wrap_PI(target_angles[2] - att[2]);
+        } else {
+            for(uint8_t i = 0; i < 3; i++) {
+                g_controlInput[i].mode = INPUT_MODE_SPEED;
+                g_controlInput[i].cmd = 0.0f;
+            }
+        }
+    } else { //if not GPS mode just copy
+        for(uint8_t i = 0; i < 3; i++) {
+            g_controlInput[i].mode = g_canInput[i].mode;
+            g_controlInput[i].cmd = g_canInput[i].cmd;
+        }
     }
 
     for (i = 0; i < 3; i++) {
         speedLimit = ((float) g_modeSettings[i].speed) * DEG2RAD;
 
-        if (g_canInput[i].mode & INPUT_MODE_BODYFRAME) {
+        if (g_controlInput[i].mode & INPUT_MODE_BODYFRAME) {
             /* Calculate offset of the gimbal: */
-            coef = g_motorOffset[i] - g_canInput[i].cmd;
+            coef = g_motorOffset[i] - g_controlInput[i].cmd;
+
+            coef = wrap_PI(coef);
+
             if(PID[i].prevDist > 0.1f || PID[i].prevDist < -0.1f) {
                 coef = 0.0f;
             }
@@ -353,10 +369,10 @@ void cameraRotationUpdate(void) {
             } else {
                 coef = 0.0f;
             }
-        } else if (g_canInput[i].mode == INPUT_MODE_NONE) { //Unknow mode
+        } else if (g_controlInput[i].mode == INPUT_MODE_NONE) { //Unknow mode
             camRot[i] = 0.0f;
             continue;
-        } else if (g_canInput[i].mode == INPUT_MODE_GPS_COORD) {
+        } else if (g_controlInput[i].mode == INPUT_MODE_GPS_COORD) {
             coef = g_motorOffset[i];
             if(PID[i].prevDist > 0.1f || PID[i].prevDist < -0.1f) {
                 coef = 0.0f;
@@ -373,9 +389,9 @@ void cameraRotationUpdate(void) {
                 coef = 0.0f;
             }
         } else {
-            coef = g_canInput[i].cmd;
+            coef = g_controlInput[i].cmd;
 
-            if (g_canInput[i].mode & INPUT_MODE_SPEED) {
+            if (g_controlInput[i].mode & INPUT_MODE_SPEED) {
                 coef = constrain(coef, -speedLimit, speedLimit);
                 camRotSpeedPrev[i] += (coef - camRotSpeedPrev[i])
                         / INPUT_SIGNAL_ALPHA;

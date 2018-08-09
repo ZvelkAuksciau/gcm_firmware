@@ -20,7 +20,8 @@
 #include <math.h>
 
 #define M_PI        3.14159f
-#define M_TWOPI     M_PI*2.0f
+#define M_TWOPI     M_PI*2.0f //TODO: refactor to use M_2PI
+#define M_2PI       M_TWOPI
 #define RAD2DEG     ( 180.0f / M_PI )
 #define DEG2RAD     ( M_PI / 180.0f )
 
@@ -35,6 +36,25 @@ typedef struct tagI2CErrorStruct {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+static float inline wrap_2PI(float radian)
+{
+    float res = fmodf(radian, M_2PI);
+    if (res < 0) {
+        res += M_2PI;
+    }
+    return res;
+}
+
+static float inline wrap_PI(float radian)
+{
+    float res = wrap_2PI(radian);
+    if (res > M_PI) {
+        res -= M_2PI;
+    }
+    return res;
+}
+
 
 /**
  * Fast Inverse Square Root approximation from www.gamedev.net

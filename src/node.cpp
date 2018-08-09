@@ -77,7 +77,7 @@ namespace Node {
     geo_poi_sub.start(
             [&](const uavcan::ReceivedDataStructure<uavcan::equipment::camera_gimbal::GEOPOICommand>& msg)
             {
-                Location target(msg.longitude_deg_1e7/1e7f, msg.latitude_deg_1e7/1e7f, msg.height_cm/100.0f);
+                Location target(msg.latitude_deg_1e7/1e7f, msg.longitude_deg_1e7/1e7f, msg.height_cm/100.0f);
                 g_target_loc = target;
                 for(int i = 0; i < 3; i++) {
                     g_canInput[i].mode = INPUT_MODE_GPS_COORD;
