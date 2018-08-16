@@ -51,10 +51,11 @@ namespace Node {
             float cmd[3];
             uint8_t mode = msg.mode.command_mode;
             float q[4];
-            q[0] = msg.quaternion_xyzw[3];
-            q[1] = msg.quaternion_xyzw[0];
-            q[2] = msg.quaternion_xyzw[1];
-            q[3] = msg.quaternion_xyzw[2];
+            //Here we mix and invert axis to adhere to UAVCAN rotation represantation
+            q[0] = msg.quaternion_xyzw[3]; // w
+            q[1] = msg.quaternion_xyzw[1]; // gimbal pitch axis (x)
+            q[2] = msg.quaternion_xyzw[0]; // gimbal roll axis (y)
+            q[3] = -msg.quaternion_xyzw[2]; // gimbal yaw axis (z)
             Quaternion2RPY(q, cmd);
             if(mode == uavcan::equipment::camera_gimbal::Mode::COMMAND_MODE_ANGULAR_VELOCITY) {
                 for(uint8_t i = 0; i < 3; i++) {
