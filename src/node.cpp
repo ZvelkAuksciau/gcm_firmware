@@ -67,6 +67,12 @@ namespace Node {
                     g_canInput[i].mode = INPUT_MODE_ANGLE;
                     g_canInput[i].cmd = cmd[i];
                 }
+            } else if(mode == uavcan::equipment::camera_gimbal::Mode::COMMAND_MODE_ORIENTATION_BODY_FRAME) {
+                for(uint8_t i = 0; i < 3; i++) {
+                    g_canInput[i].mode = INPUT_MODE_BODYFRAME;
+                    g_canInput[i].cmd = cmd[i];
+                }
+
             } else {
                 for(uint8_t i = 0; i < 3; i++) {
                     g_canInput[i].mode = INPUT_MODE_NONE;

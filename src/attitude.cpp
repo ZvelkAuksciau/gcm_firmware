@@ -332,7 +332,7 @@ void cameraRotationUpdate(void) {
             g_controlInput[0].cmd = target_angles[0];
             float att[3];
             g_autopilot_attitude.GetEulerAngles(att[0], att[1], att[2]);
-            g_controlInput[2].cmd = wrap_PI(target_angles[2] - att[2]);
+            g_controlInput[2].cmd = -wrap_PI(target_angles[2] - att[2]); //- due to different rotation reference frames
         } else {
             for(uint8_t i = 0; i < 3; i++) {
                 g_controlInput[i].mode = INPUT_MODE_SPEED;
@@ -351,7 +351,7 @@ void cameraRotationUpdate(void) {
 
         if (g_controlInput[i].mode & INPUT_MODE_BODYFRAME) {
             /* Calculate offset of the gimbal: */
-            coef = g_motorOffset[i] - g_controlInput[i].cmd;
+            coef = g_controlInput[i].cmd - g_motorOffset[i];
 
             coef = wrap_PI(coef);
 
@@ -418,7 +418,7 @@ void actuatorsUpdate(void) {
 
   //Quaterion g_imu(g_IMU1.qIMU[0], g_IMU1.qIMU[1], g_IMU1.qIMU[2], g_IMU1.qIMU[3]);
   Quaterion g_imu = Quaterion::FromEulerAngles(g_IMU1.rpy[0], 0.0f, 0.0f);
-  Quaterion g_motors = Quaterion::FromEulerAngles(-g_motorOffset[0], 0.0f, 0.0f);//g_motorOffset[1], g_motorOffset[2]);
+  Quaterion g_motors = Quaterion::FromEulerAngles(g_motorOffset[0], 0.0f, 0.0f);//g_motorOffset[1], g_motorOffset[2]);
   Quaterion q = g_imu * g_motors.inverse();
   float cmd[3] = { 0.0f };
   /* Pitch: */
